@@ -69,3 +69,12 @@ class TokenSerializer(serializers.ModelSerializer):
     class Meta:
         model = UserToken
         fields = ["access_token", "refresh_token"]
+
+
+from address.models import Address
+
+
+class UserSummarySerializer(serializers.Serializer):
+    uid = serializers.UUIDField()
+    full_name = serializers.CharField()
+    email = serializers.EmailField()

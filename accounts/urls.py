@@ -1,16 +1,18 @@
 from django.urls import path
 from .views import (
-    userroot,
     RegisterAPIView,
     LoginAPIView,
-    VerifyOTPAPIView
+    VerifyOTPAPIView,
+    UserSummaryAPIView
 )
 
 urlpatterns = [
-    path('', userroot, name='userroot'),
 
     # Auth Routes
     path('register/', RegisterAPIView.as_view(), name='register'),
     path('login/', LoginAPIView.as_view(), name='login'),
     path('verify-otp/', VerifyOTPAPIView.as_view(), name='verify_otp'),
+
+    path('summary/', UserSummaryAPIView.as_view(), name='user_summary'),
+
 ]

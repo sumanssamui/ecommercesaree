@@ -17,18 +17,6 @@ from rest_framework_simplejwt.tokens import RefreshToken
 
 
 # -----------------------------
-# SIMPLE ROOT CHECK
-# -----------------------------
-def userroot(request):
-    data = {
-        "message": "Hello User",
-        "status": "success"
-    }
-    return JsonResponse(data)
-
-
-
-# -----------------------------
 # USER REGISTER API
 # -----------------------------
 class RegisterAPIView(APIView):
@@ -130,3 +118,50 @@ class LoginAPIView(APIView):
             "access": str(refresh.access_token),
             "refresh": str(refresh)
         }, status=200)
+
+
+
+
+
+
+
+
+
+
+from rest_framework.permissions import IsAuthenticated
+from cart.models import CartItem
+from wishlist.models import WishlistItem
+from address.models import Address
+from rest_framework.views import APIView
+from rest_framework.response import Response
+from .serializers import UserSummarySerializer
+
+
+class UserSummaryAPIView(APIView):
+    permission_classes = [IsAuthenticated]
+
+    def get(self, request):
+        user = request.user
+
+        # Cart count
+        cart_count = CartItem.objects.filter(cart__user=user).count()
+
+        # Wishlist count
+        wishlist_count = WishlistItem.objects.filter(wishlist__user=user).count()
+
+        # Default address (light fields only)
+        default_address = Address.objects.filter(
+            user=user, is_default=True
+        ).values(
+            "id",
+            "city",
+            "state",
+            "pincode"
+        ).first()
+
+        return Response({
+            "user": UserSummarySerializer(user).data,
+            "cart_count": cart_count,
+            "wishlist_count": wishlist_count,
+            "default_address": default_address
+        })

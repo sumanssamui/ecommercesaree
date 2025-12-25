@@ -31,7 +31,11 @@ INSTALLED_APPS = [
     'accounts',
     'products',
     'cart',
-    'wishlist'
+    'wishlist',
+    'reviews',
+    'address',
+    'orders',
+
 ]
 
 MIDDLEWARE = [
@@ -162,3 +166,8 @@ EMAIL_PORT = 587
 EMAIL_USE_TLS = True
 EMAIL_HOST_USER = "sumanssamui@gmail.com"
 EMAIL_HOST_PASSWORD = "ppiclzcwfzsvqgln"
+
+
+
+RAZORPAY_KEY_ID = "rzp_test_xxxxxxxxxx"
+RAZORPAY_KEY_SECRET = "xxxxxxxxxxxxxxxx"
