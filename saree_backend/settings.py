@@ -14,7 +14,7 @@ SECRET_KEY = 'django-insecure-hma)428pe!#mez!en*hi$@k4t4i#3hr=+**z!3ixt26m_!z-!a
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = ["*"]
 
 
 # Application definition
@@ -28,6 +28,7 @@ INSTALLED_APPS = [
     'django.contrib.staticfiles',
     'rest_framework',
     'rest_framework_simplejwt',
+    "corsheaders",
     'accounts',
     'products',
     'cart',
@@ -39,6 +40,7 @@ INSTALLED_APPS = [
 ]
 
 MIDDLEWARE = [
+    "corsheaders.middleware.CorsMiddleware",
     'django.middleware.security.SecurityMiddleware',
     'django.contrib.sessions.middleware.SessionMiddleware',
     'django.middleware.common.CommonMiddleware',
@@ -47,6 +49,19 @@ MIDDLEWARE = [
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
+
+
+CORS_ALLOW_ALL_ORIGINS = True
+
+
+# CORS_ALLOWED_ORIGINS = [
+#     "http://localhost:3000",
+#     "http://127.0.0.1:3000",
+#     "https://yourdomain.com",
+#     "https://api.yourdomain.com",
+# ]
+
+
 
 ROOT_URLCONF = 'saree_backend.urls'
 
@@ -169,5 +184,8 @@ EMAIL_HOST_PASSWORD = "ppiclzcwfzsvqgln"
 
 
 
-RAZORPAY_KEY_ID = "rzp_test_xxxxxxxxxx"
-RAZORPAY_KEY_SECRET = "xxxxxxxxxxxxxxxx"
+RAZORPAY_KEY_ID = "rzp_live_S3nOyStyhk5RdZ"
+RAZORPAY_KEY_SECRET = "iYAXuhNyB96hqXpC0yYlgFx0"
+
+# Live Key ID :rzp_live_S3nOyStyhk5RdZ
+# Live Key Secret :iYAXuhNyB96hqXpC0yYlgFx0

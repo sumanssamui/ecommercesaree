@@ -3,6 +3,7 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
+from .serializers import ForgotPasswordSerializer, ResetPasswordSerializer
 
 from .models import User, UserToken
 from .serializers import (
@@ -165,3 +166,65 @@ class UserSummaryAPIView(APIView):
             "wishlist_count": wishlist_count,
             "default_address": default_address
         })
+
+
+
+
+
+# -----------------------------
+# FORGOT PASSWORD (SEND OTP)
+# -----------------------------
+class ForgotPasswordAPIView(APIView):
+    def post(self, request):
+        serializer = ForgotPasswordSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        email = serializer.validated_data["email"]
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response({"error": "User not found"}, status=404)
+
+        otp = create_otp(user)
+        send_otp_email(email, otp)
+
+        return Response({
+            "message": "Password reset OTP sent"
+        }, status=200)
+
+
+# -----------------------------
+# RESET PASSWORD
+# -----------------------------
+class ResetPasswordAPIView(APIView):
+    def post(self, request):
+        serializer = ResetPasswordSerializer(data=request.data)
+
+        if not serializer.is_valid():
+            return Response(serializer.errors, status=400)
+
+        email = serializer.validated_data["email"]
+        otp = serializer.validated_data["otp"]
+        new_password = serializer.validated_data["new_password"]
+
+        try:
+            user = User.objects.get(email=email)
+            otp_entry = user.email_otps.filter(
+                otp=otp,
+                is_used=False
+            ).latest("created_at")
+        except Exception:
+            return Response({"error": "Invalid or expired OTP"}, status=400)
+
+        user.set_password(new_password)
+        user.save()
+
+        otp_entry.is_used = True
+        otp_entry.save()
+
+        return Response({
+            "message": "Password reset successful"
+        }, status=200)

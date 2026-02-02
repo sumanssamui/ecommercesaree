@@ -14,7 +14,6 @@ urlpatterns = [
     path('address/', include('address.urls')),
     path('orders/',include("orders.urls")),
     path('admin-api/', include('orders.admin_urls')),
-
 ]
 
 
