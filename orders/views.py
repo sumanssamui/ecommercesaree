@@ -149,11 +149,20 @@ class CreateRazorpayOrderAPIView(APIView):
             "payment_capture": 1
         })
 
-        payment = Payment.objects.create(
+        payment, created = Payment.objects.get_or_create(
             order=order,
-            razorpay_order_id=razorpay_order["id"],
-            amount=order.total_amount
+            defaults={
+                "razorpay_order_id": razorpay_order["id"],
+                "amount": order.total_amount
+            }
         )
+
+        # If payment already exists, update razorpay order id
+        if not created:
+            payment.razorpay_order_id = razorpay_order["id"]
+            payment.amount = order.total_amount
+            payment.save()
+
 
         return Response({
             "razorpay_order_id": razorpay_order["id"],
@@ -311,11 +320,20 @@ class CheckoutAPIView(APIView):
             "payment_capture": 1
         })
 
-        Payment.objects.create(
+        # Payment.objects.create(
+        #     order=order,
+        #     razorpay_order_id=razorpay_order["id"],
+        #     amount=total_amount
+        # )
+
+        Payment.objects.get_or_create(
             order=order,
-            razorpay_order_id=razorpay_order["id"],
-            amount=total_amount
+            defaults={
+                "razorpay_order_id": razorpay_order["id"],
+                "amount": total_amount
+            }
         )
+
 
         # 6️⃣ Clear cart
         cart_items.delete()

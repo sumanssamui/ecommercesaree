@@ -1,12 +1,14 @@
 
+from dotenv import load_dotenv
+import os
 from pathlib import Path
+
+load_dotenv()
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
 
-# Quick-start development settings - unsuitable for production
-# See https://docs.djangoproject.com/en/5.2/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = 'django-insecure-hma)428pe!#mez!en*hi$@k4t4i#3hr=+**z!3ixt26m_!z-!a'
@@ -134,9 +136,8 @@ USE_TZ = False   # Very important for India local time
 # https://docs.djangoproject.com/en/5.2/howto/static-files/
 
 STATIC_URL = 'static/'
+STATIC_ROOT = BASE_DIR / "staticfiles"
 
-
-import os
 
 MEDIA_URL = '/media/'
 MEDIA_ROOT = os.path.join(BASE_DIR, 'media')
@@ -188,7 +189,7 @@ EMAIL_HOST_USER = "sumanssamui@gmail.com"
 EMAIL_HOST_PASSWORD = "ppiclzcwfzsvqgln"
 
 
+RAZORPAY_KEY_ID = os.getenv("RAZORPAY_KEY_ID")
+RAZORPAY_KEY_SECRET = os.getenv("RAZORPAY_KEY_SECRET")
 
-RAZORPAY_KEY_ID = "rzp_test_S3nOyStyhk5RdZ"
-RAZORPAY_KEY_SECRET = "new test key"
 
