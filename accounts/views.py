@@ -4,6 +4,7 @@ from rest_framework.response import Response
 from rest_framework import status
 from django.contrib.auth import authenticate
 from .serializers import ForgotPasswordSerializer, ResetPasswordSerializer
+from rest_framework.permissions import AllowAny
 
 from .models import User, UserToken
 from .serializers import (
@@ -21,8 +22,10 @@ from rest_framework_simplejwt.tokens import RefreshToken
 # USER REGISTER API
 # -----------------------------
 class RegisterAPIView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = RegisterSerializer(data=request.data)
+
 
         if not serializer.is_valid():
             return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
@@ -49,6 +52,7 @@ class RegisterAPIView(APIView):
 # VERIFY OTP API
 # -----------------------------
 class VerifyOTPAPIView(APIView):
+    permission_classes = [AllowAny]
     def post(self, request):
         serializer = VerifyOTPSerializer(data=request.data)
 
@@ -95,6 +99,8 @@ class VerifyOTPAPIView(APIView):
 # LOGIN API
 # -----------------------------
 class LoginAPIView(APIView):
+    permission_classes = [AllowAny]
+
     def post(self, request):
         serializer = LoginSerializer(data=request.data)
 
@@ -104,25 +110,59 @@ class LoginAPIView(APIView):
         user = serializer.validated_data["user"]
 
         refresh = RefreshToken.for_user(user)
+        access_token = str(refresh.access_token)
+        refresh_token = str(refresh)
 
+        # Save refresh token in DB (optional but recommended)
         UserToken.objects.update_or_create(
             user=user,
             defaults={
-                "access_token": str(refresh.access_token),
-                "refresh_token": str(refresh)
+                "refresh_token": refresh_token
             }
         )
 
-        return Response({
+        response = Response({
             "message": "Login Successful",
             "user": UserSerializer(user).data,
-            "access": str(refresh.access_token),
-            "refresh": str(refresh)
+            "access": access_token
         }, status=200)
 
+        # ✅ STORE REFRESH TOKEN IN HTTP-ONLY COOKIE
+        response.set_cookie(
+            key="refresh_token",
+            value=refresh_token,
+            httponly=True,
+            secure=False,      # True in production (HTTPS)
+            samesite="Strict",
+            max_age=7 * 24 * 60 * 60  # 7 days
+        )
+
+        return response
 
 
 
+class RefreshAPIView(APIView):
+    permission_classes = [AllowAny]
+
+    def post(self, request):
+        refresh_token = request.COOKIES.get("refresh_token")
+
+        if not refresh_token:
+            return Response({"error": "No refresh token"}, status=401)
+
+        refresh = RefreshToken(refresh_token)
+        access = str(refresh.access_token)
+
+        return Response({"access": access}, status=200)
+
+
+
+class LogoutAPIView(APIView):
+    def post(self, request):
+        response = Response({"message": "Logged out"})
+        response.delete_cookie("refresh_token")
+        UserToken.objects.filter(user=request.user).delete()
+        return response
 
 
 

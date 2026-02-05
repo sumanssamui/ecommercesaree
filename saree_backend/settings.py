@@ -52,6 +52,8 @@ MIDDLEWARE = [
 
 
 CORS_ALLOW_ALL_ORIGINS = True
+CORS_ALLOW_CREDENTIALS = True
+
 
 
 # CORS_ALLOWED_ORIGINS = [
@@ -149,7 +151,10 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 REST_FRAMEWORK = {
     'DEFAULT_AUTHENTICATION_CLASSES': (
         'rest_framework_simplejwt.authentication.JWTAuthentication',
-    )
+    ),
+    'DEFAULT_PERMISSION_CLASSES': (
+        'rest_framework.permissions.AllowAny',
+    ),
 }
 
 
@@ -184,8 +189,6 @@ EMAIL_HOST_PASSWORD = "ppiclzcwfzsvqgln"
 
 
 
-RAZORPAY_KEY_ID = "rzp_live_S3nOyStyhk5RdZ"
-RAZORPAY_KEY_SECRET = "iYAXuhNyB96hqXpC0yYlgFx0"
+RAZORPAY_KEY_ID = "rzp_test_S3nOyStyhk5RdZ"
+RAZORPAY_KEY_SECRET = "new test key"
 
-# Live Key ID :rzp_live_S3nOyStyhk5RdZ
-# Live Key Secret :iYAXuhNyB96hqXpC0yYlgFx0
