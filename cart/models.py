@@ -1,7 +1,7 @@
 from django.db import models
 from accounts.models import User
 from products.models import SareeProduct
-
+from decimal import Decimal
 
 class Cart(models.Model):
     user = models.OneToOneField(User, on_delete=models.CASCADE, related_name="cart")
@@ -19,6 +19,10 @@ class CartItem(models.Model):
     def __str__(self):
         return f"{self.product.title} x {self.quantity}"
 
+
+
     @property
     def total_price(self):
-        return self.product.price * self.quantity
+        price = self.product.discount_price or self.product.price
+        return Decimal(price) * self.quantity
+

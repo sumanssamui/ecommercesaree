@@ -22,7 +22,7 @@ class SareeProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = SareeProduct
         fields = [
-            "uid", "title", "description", "price", "discount_price",
+            "uid", "title", "description", "price", "discount_price","discount",
             "material", "color", "stock", "category", "images", "created_at"
         ]
 

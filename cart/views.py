@@ -23,27 +23,33 @@ class AddToCartAPIView(APIView):
         product_id = request.data.get("product_id")
         quantity = int(request.data.get("quantity", 1))
 
+        if not product_id:
+            return Response({"error": "product_id required"}, status=400)
+
+        if quantity <= 0:
+            return Response({"error": "Quantity must be greater than zero"}, status=400)
+
         try:
             product = SareeProduct.objects.get(uid=product_id)
         except SareeProduct.DoesNotExist:
             return Response({"error": "Product not found"}, status=404)
 
-        cart = get_user_cart(request.user)
+        cart, _ = Cart.objects.get_or_create(user=request.user)
 
-        # Check if item already exists
         cart_item, created = CartItem.objects.get_or_create(
             cart=cart,
             product=product
         )
 
-        if not created:
-            cart_item.quantity += quantity
-        else:
+        if created:
             cart_item.quantity = quantity
+        else:
+            cart_item.quantity += quantity
 
         cart_item.save()
 
-        return Response({"message": "Item added to cart successfully"})
+        return Response({"message": "Item added to cart successfully"}, status=200)
+
 
 
 # ----------------------------

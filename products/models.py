@@ -67,6 +67,12 @@ class SareeProduct(models.Model):
     
     created_at = models.DateTimeField(auto_now_add=True)
 
+    # ✅ Discount percentage
+    def discount(self):
+        if self.discount_price and self.price:
+            return int(((self.price - self.discount_price) / self.price) * 100)
+        return 0
+
     def __str__(self):
         return self.title
 
