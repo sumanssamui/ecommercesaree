@@ -1,16 +1,18 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework import status
-from .models import SareeProduct, Category
-from .serializers import SareeProductSerializer
 from django.db.models import Q
+from rest_framework.parsers import MultiPartParser, FormParser
+from .serializers import SareeProductSerializer, SareeProductCreateSerializer, ProductImageSerializer
+from .models import SareeProduct, ProductImage, Category
+from rest_framework.permissions import IsAuthenticated
+from math import ceil
 
 
 # ---------------------------
 # PRODUCT LIST VIEW WITH SORTING
 # ---------------------------
 
-from math import ceil
 
 
 class ProductListAPIView(APIView):
@@ -108,10 +110,7 @@ class ProductDetailAPIView(APIView):
 
 
 # add products here
-from rest_framework.parsers import MultiPartParser, FormParser
-from .serializers import SareeProductSerializer, SareeProductCreateSerializer, ProductImageSerializer
-from .models import SareeProduct, ProductImage, Category
-from rest_framework.permissions import IsAuthenticated
+
 
 
 class ProductCreateAPIView(APIView):
