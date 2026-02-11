@@ -2,6 +2,7 @@ from django.contrib import admin
 from django.urls import path , include
 from django.conf import settings
 from django.conf.urls.static import static
+from .views import root_api
 
 
 urlpatterns = [
@@ -14,8 +15,8 @@ urlpatterns = [
     path('address/', include('address.urls')),
     path('orders/',include("orders.urls")),
     path('admin-api/', include('orders.admin_urls')),
+    path('', root_api),
 ]
-
 
 # Serve media files during development
 if settings.DEBUG:

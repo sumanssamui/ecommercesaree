@@ -9,7 +9,7 @@ from .models import User, EmailOTP, UserToken
 class UserSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
-        fields = ["uid", "email", "full_name", "phone", "is_active", "date_joined"]
+        fields = ["uid", "email", "full_name", "phone", "avatar", "is_active", "date_joined"]
 
 
 # -------------------------

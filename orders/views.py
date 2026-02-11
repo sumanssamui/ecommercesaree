@@ -1,8 +1,9 @@
 from rest_framework.views import APIView
 from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
+from django.db.models import F
 from decimal import Decimal
-
+from django.db import transaction
 from cart.models import Cart, CartItem
 from .models import Order, OrderItem
 from address.models import Address
@@ -32,74 +33,74 @@ from .models import Order
 
 
 
-class CreateOrderAPIView(APIView):
-    permission_classes = [IsAuthenticated]
+# class CreateOrderAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
 
-    def post(self, request):
-        user = request.user
-        address_id = request.data.get("address_id")
+#     def post(self, request):
+#         user = request.user
+#         address_id = request.data.get("address_id")
 
-        # Validate address
-        try:
-            address = Address.objects.get(id=address_id, user=user)
-        except Address.DoesNotExist:
-            return Response({"error": "Invalid address"}, status=400)
+#         # Validate address
+#         try:
+#             address = Address.objects.get(id=address_id, user=user)
+#         except Address.DoesNotExist:
+#             return Response({"error": "Invalid address"}, status=400)
 
-        # Get cart
-        try:
-            cart = Cart.objects.get(user=user)
-        except Cart.DoesNotExist:
-            return Response({"error": "Cart is empty"}, status=400)
+#         # Get cart
+#         try:
+#             cart = Cart.objects.get(user=user)
+#         except Cart.DoesNotExist:
+#             return Response({"error": "Cart is empty"}, status=400)
 
-        cart_items = CartItem.objects.filter(cart=cart)
-        if not cart_items.exists():
-            return Response({"error": "Cart is empty"}, status=400)
+#         cart_items = CartItem.objects.filter(cart=cart)
+#         if not cart_items.exists():
+#             return Response({"error": "Cart is empty"}, status=400)
 
-        total_amount = Decimal("0.00")
+#         total_amount = Decimal("0.00")
 
-        # Create Order
-        order = Order.objects.create(
-            user=user,
-            address=address,
-            total_amount=0
-        )
+#         # Create Order
+#         order = Order.objects.create(
+#             user=user,
+#             address=address,
+#             total_amount=0
+#         )
 
-        # Create Order Items
-        for item in cart_items:
-            product = item.product
+#         # Create Order Items
+#         for item in cart_items:
+#             product = item.product
 
-            if item.quantity > product.stock:
-                order.delete()
-                return Response({
-                    "error": f"{product.title} is out of stock"
-                }, status=400)
+#             if item.quantity > product.stock:
+#                 order.delete()
+#                 return Response({
+#                     "error": f"{product.title} is out of stock"
+#                 }, status=400)
 
-            price = product.discount_price or product.price
-            item_total = price * item.quantity
-            total_amount += item_total
+#             price = product.discount_price or product.price
+#             item_total = price * item.quantity
+#             total_amount += item_total
 
-            OrderItem.objects.create(
-                order=order,
-                product=product,
-                price=price,
-                quantity=item.quantity,
-                total_price=item_total
-            )
+#             OrderItem.objects.create(
+#                 order=order,
+#                 product=product,
+#                 price=price,
+#                 quantity=item.quantity,
+#                 total_price=item_total
+#             )
 
-            # Reduce stock
-            product.stock -= item.quantity
-            product.save()
+#             # Reduce stock
+#             product.stock -= item.quantity
+#             product.save()
 
-        order.total_amount = total_amount
-        order.save()
+#         order.total_amount = total_amount
+#         order.save()
 
-        # Clear cart
-        cart_items.delete()
+#         # Clear cart
+#         cart_items.delete()
 
-        return Response({
-            "message": "Order created successfully",
-            "order": OrderSerializer(order).data
-        }, status=201)
+#         return Response({
+#             "message": "Order created successfully",
+#             "order": OrderSerializer(order).data
+#         }, status=201)
 
 
 class MyOrdersAPIView(APIView):
@@ -180,15 +181,26 @@ class CreateRazorpayOrderAPIView(APIView):
 class VerifyRazorpayPaymentAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request):
         razorpay_order_id = request.data.get("razorpay_order_id")
         razorpay_payment_id = request.data.get("razorpay_payment_id")
         razorpay_signature = request.data.get("razorpay_signature")
 
         try:
-            payment = Payment.objects.get(razorpay_order_id=razorpay_order_id)
+            payment = Payment.objects.select_for_update().get(
+                razorpay_order_id=razorpay_order_id
+            )
         except Payment.DoesNotExist:
             return Response({"error": "Payment record not found"}, status=404)
+
+        # ✅ Idempotency protection
+        if payment.status == "PAID":
+            return Response({"message": "Already verified"}, status=200)
+
+        # ✅ Security check
+        if payment.order.user != request.user:
+            return Response({"error": "Unauthorized"}, status=403)
 
         client = razorpay.Client(
             auth=(settings.RAZORPAY_KEY_ID, settings.RAZORPAY_KEY_SECRET)
@@ -205,21 +217,41 @@ class VerifyRazorpayPaymentAPIView(APIView):
             payment.save()
             return Response({"error": "Payment verification failed"}, status=400)
 
+        # ✅ Deduct stock safely
+        order = payment.order
+        # order_items = OrderItem.objects.select_related("product").filter(order=order)
+        order_items = OrderItem.objects.select_related("product").select_for_update().filter(order=order)
 
-        # Payment success
+
+        for item in order_items:
+            product = item.product
+
+            if product.stock < item.quantity:
+                return Response(
+                    {"error": f"{product.title} is out of stock"},
+                    status=400
+                )
+
+            # product.stock -= item.quantity
+            # product.save()
+            product.stock = F("stock") - item.quantity
+            product.save(update_fields=["stock"])
+
+
+        # ✅ Mark payment + order
         payment.razorpay_payment_id = razorpay_payment_id
         payment.razorpay_signature = razorpay_signature
         payment.status = "PAID"
         payment.save()
 
-        order = payment.order
         order.status = "PAID"
         order.save()
 
-        # 🔥 Generate Invoice PDF
-        invoice_path = generate_invoice_pdf(order)
+        # ✅ Clear cart NOW
+        CartItem.objects.filter(cart__user=order.user).delete()
 
-        # 🔥 Send Email
+        # ✅ Generate invoice + send email
+        invoice_path = generate_invoice_pdf(order)
         send_order_confirmation_email(
             user_email=order.user.email,
             invoice_path=invoice_path,
@@ -231,26 +263,14 @@ class VerifyRazorpayPaymentAPIView(APIView):
             "order_uid": order.uid
         })
 
-        # # Payment success
-        # payment.razorpay_payment_id = razorpay_payment_id
-        # payment.razorpay_signature = razorpay_signature
-        # payment.status = "PAID"
-        # payment.save()
 
-        # order = payment.order
-        # order.status = "PAID"
-        # order.save()
-
-        # return Response({
-        #     "message": "Payment successful",
-        #     "order_uid": order.uid
-        # })
-
+       
 
 
 class CheckoutAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
+    @transaction.atomic
     def post(self, request):
         user = request.user
         address_id = request.data.get("address_id")
@@ -302,9 +322,6 @@ class CheckoutAPIView(APIView):
                 total_price=item_total
             )
 
-            # Reduce stock
-            product.stock -= item.quantity
-            product.save()
 
         order.total_amount = total_amount
         order.save()
@@ -335,9 +352,6 @@ class CheckoutAPIView(APIView):
         )
 
 
-        # 6️⃣ Clear cart
-        cart_items.delete()
-
         # 7️⃣ Return payment payload to frontend
         return Response({
             "message": "Checkout initiated",
@@ -360,13 +374,15 @@ class OrderInvoiceDownloadAPIView(APIView):
             order = Order.objects.get(uid=order_uid)
         except Order.DoesNotExist:
             # raise Http404("Order not found")  # ✅ RAISE, not return
-            return Http404("Order not found")
+            # return Http404("Order not found")
+            raise Http404("Order not found")
+
 
         # Permission check:
         # user can download own invoice
         # admin can download any invoice
         if order.user != request.user and not request.user.is_staff:
-            return Http404("Not allowed")
+            raise Http404("Not allowed")
 
         invoice_path = os.path.join(
             settings.MEDIA_ROOT,
@@ -375,7 +391,7 @@ class OrderInvoiceDownloadAPIView(APIView):
         )
 
         if not os.path.exists(invoice_path):
-            return Http404("Invoice not found")
+            raise Http404("Invoice not found")
 
         return FileResponse(
             open(invoice_path, "rb"),

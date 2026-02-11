@@ -1,6 +1,6 @@
 from django.urls import path
 from .views import (
-    CreateOrderAPIView,
+    # CreateOrderAPIView,
     MyOrdersAPIView,
     CreateRazorpayOrderAPIView,
     VerifyRazorpayPaymentAPIView,
@@ -9,7 +9,7 @@ from .views import (
 )
 
 urlpatterns = [
-    path('create/', CreateOrderAPIView.as_view()),
+    # path('create/', CreateOrderAPIView.as_view()),
     path('my-orders/', MyOrdersAPIView.as_view()),
     path('<uuid:order_uid>/razorpay/', CreateRazorpayOrderAPIView.as_view()),
     path('verify-payment/', VerifyRazorpayPaymentAPIView.as_view()),

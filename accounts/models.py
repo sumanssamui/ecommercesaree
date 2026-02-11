@@ -34,6 +34,9 @@ class User(AbstractBaseUser, PermissionsMixin):
     full_name = models.CharField(max_length=150, blank=True)
     phone = models.CharField(max_length=15, blank=True, null=True)
 
+    # ✅ ADD THIS FIELD
+    avatar = models.ImageField(upload_to="profiles/", null=True, blank=True)
+
     # Django default fields
     is_active = models.BooleanField(default=False)  # set true after OTP verify
     is_staff = models.BooleanField(default=False)

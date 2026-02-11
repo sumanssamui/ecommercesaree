@@ -3,6 +3,7 @@ from rest_framework.response import Response
 from rest_framework.permissions import IsAuthenticated
 from .models import Address
 from .serializers import AddressSerializer
+from .throttles import AddressThrottle
 
 
 # -------------------------
@@ -10,6 +11,7 @@ from .serializers import AddressSerializer
 # -------------------------
 class AddAddressAPIView(APIView):
     permission_classes = [IsAuthenticated]
+    throttle_classes = [AddressThrottle]
 
     def post(self, request):
         serializer = AddressSerializer(data=request.data)

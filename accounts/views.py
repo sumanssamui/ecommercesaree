@@ -141,6 +141,14 @@ class LoginAPIView(APIView):
 
 
 
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+from rest_framework import status
+from rest_framework_simplejwt.tokens import RefreshToken
+from rest_framework_simplejwt.exceptions import TokenError
+
+
 class RefreshAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -148,12 +156,31 @@ class RefreshAPIView(APIView):
         refresh_token = request.COOKIES.get("refresh_token")
 
         if not refresh_token:
-            return Response({"error": "No refresh token"}, status=401)
+            return Response(
+                {"error": "No refresh token"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
 
-        refresh = RefreshToken(refresh_token)
-        access = str(refresh.access_token)
+        try:
+            refresh = RefreshToken(refresh_token)
+            access = str(refresh.access_token)
 
-        return Response({"access": access}, status=200)
+            return Response(
+                {"access": access},
+                status=status.HTTP_200_OK
+            )
+
+        except TokenError:
+            response = Response(
+                {"error": "Invalid or expired refresh token"},
+                status=status.HTTP_401_UNAUTHORIZED
+            )
+
+            # ❌ Remove bad cookie
+            response.delete_cookie("refresh_token")
+
+            return response
+
 
 
 
