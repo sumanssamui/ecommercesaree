@@ -23,17 +23,17 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        working-directory: backend/ecommercesaree
+        working-directory: ecommercesaree
         run: |
           pip install -r requirements.txt
           pip install coverage pytest pytest-django
 
       - name: Run migrations
-        working-directory: backend/ecommercesaree
+        working-directory: ecommercesaree
         run: python manage.py migrate
 
       - name: Run tests
-        working-directory: backend/ecommercesaree
+        working-directory: ecommercesaree
         run: |
           coverage run manage.py test
           coverage report
