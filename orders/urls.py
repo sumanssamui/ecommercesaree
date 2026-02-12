@@ -5,16 +5,21 @@ from .views import (
     CreateRazorpayOrderAPIView,
     VerifyRazorpayPaymentAPIView,
     CheckoutAPIView,
-    OrderInvoiceDownloadAPIView
+    OrderInvoiceDownloadAPIView,
+    PaymentCancelledAPIView,
+    RazorpayWebhookAPIView,
 )
 
 urlpatterns = [
     # path('create/', CreateOrderAPIView.as_view()),
     path('my-orders/', MyOrdersAPIView.as_view()),
+    path('<uuid:order_uid>/payment-cancelled/', PaymentCancelledAPIView.as_view()),
     path('<uuid:order_uid>/razorpay/', CreateRazorpayOrderAPIView.as_view()),
     path('verify-payment/', VerifyRazorpayPaymentAPIView.as_view()),
     path('checkout/', CheckoutAPIView.as_view()),
     path('<uuid:order_uid>/invoice/', OrderInvoiceDownloadAPIView.as_view()),
+    path("orders/razorpay/webhook/", RazorpayWebhookAPIView.as_view()),
+
 ]
 
 
