@@ -10,7 +10,7 @@ from cart.models import Cart, CartItem
 from .models import Order, OrderItem
 from address.models import Address
 from .serializers import OrderSerializer
-
+from django.utils import timezone
 import razorpay
 from django.conf import settings
 from decimal import Decimal
@@ -106,7 +106,7 @@ from .models import Order
 
 
 from django.db.models import Sum
-from django.utils import timezone
+
 
 class MyOrdersAPIView(APIView):
     permission_classes = [IsAuthenticated]
@@ -138,7 +138,6 @@ from rest_framework.views import APIView
 from rest_framework.response import Response
 
 
-from django.utils import timezone
 from django.db import transaction
 from rest_framework import status
 
