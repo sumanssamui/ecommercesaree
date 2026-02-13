@@ -297,6 +297,8 @@ class VerifyRazorpayPaymentAPIView(APIView):
         order.status = "PAID"
         order.save()
 
+        generate_invoice_pdf(order)   # 🔥 THIS MUST BE HERE
+
         # ✅ Clear cart NOW
         CartItem.objects.filter(cart__user=order.user).delete()
 

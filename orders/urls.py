@@ -18,7 +18,7 @@ urlpatterns = [
     path('verify-payment/', VerifyRazorpayPaymentAPIView.as_view()),
     path('checkout/', CheckoutAPIView.as_view()),
     path('<uuid:order_uid>/invoice/', OrderInvoiceDownloadAPIView.as_view()),
-    path("orders/razorpay/webhook/", RazorpayWebhookAPIView.as_view()),
+    path("razorpay/webhook/", RazorpayWebhookAPIView.as_view()),
 
 ]
 
