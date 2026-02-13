@@ -17,6 +17,7 @@ from decimal import Decimal
 from rest_framework.views import APIView
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
+from django.shortcuts import get_object_or_404
 
 from cart.models import Cart, CartItem
 from address.models import Address
@@ -302,13 +303,22 @@ class VerifyRazorpayPaymentAPIView(APIView):
         CartItem.objects.filter(cart__user=order.user).delete()
 
         # ✅ Generate invoice + send email
+        # def send_email_task():
+        #     invoice_path = generate_invoice_pdf(order)
+        #     send_order_confirmation_email(
+        #         user_email=order.user.email,
+        #         invoice_path=invoice_path,
+        #         order_uid=order.uid
+        #     )
+        invoice_path = generate_invoice_pdf(order)
+
         def send_email_task():
-            invoice_path = generate_invoice_pdf(order)
             send_order_confirmation_email(
                 user_email=order.user.email,
                 invoice_path=invoice_path,
                 order_uid=order.uid
             )
+
 
         on_commit(send_email_task)
 
@@ -528,39 +538,73 @@ class CheckoutAPIView(APIView):
 
 
 
+# class OrderInvoiceDownloadAPIView(APIView):
+#     permission_classes = [IsAuthenticated]
+
+#     def get(self, request, order_uid):
+#         try:
+#             # order = Order.objects.get(uid=order_uid)
+#             order = Order.objects.select_related("user").get(uid=order_uid)
+#         except Order.DoesNotExist:
+#             raise Http404("Order not found")
+
+
+#         # Permission check:
+#         # user can download own invoice
+#         # admin can download any invoice
+#         if order.user != request.user and not request.user.is_staff:
+#             raise Http404("Not allowed")
+
+#         invoice_path = os.path.join(
+#             settings.MEDIA_ROOT,
+#             "invoices",
+#             f"invoice_{order.uid}.pdf"
+#         )
+
+#         if not os.path.exists(invoice_path):
+#             raise Http404("Invoice not found")
+
+#         return FileResponse(
+#             open(invoice_path, "rb"),
+#             as_attachment=True,
+#             filename=f"invoice_{order.uid}.pdf"
+#         )
+
+
+from django.shortcuts import get_object_or_404
+
 class OrderInvoiceDownloadAPIView(APIView):
     permission_classes = [IsAuthenticated]
 
     def get(self, request, order_uid):
-        try:
-            # order = Order.objects.get(uid=order_uid)
-            order = Order.objects.select_related("user").get(uid=order_uid)
-        except Order.DoesNotExist:
-            # raise Http404("Order not found")  # ✅ RAISE, not return
-            # return Http404("Order not found")
-            raise Http404("Order not found")
 
+        order = get_object_or_404(
+            Order.objects.select_related("user"),
+            uid=order_uid
+        )
 
-        # Permission check:
-        # user can download own invoice
-        # admin can download any invoice
         if order.user != request.user and not request.user.is_staff:
             raise Http404("Not allowed")
 
+        # 🔥 Ensure folder exists
+        invoices_dir = os.path.join(settings.MEDIA_ROOT, "invoices")
+        os.makedirs(invoices_dir, exist_ok=True)
+
         invoice_path = os.path.join(
-            settings.MEDIA_ROOT,
-            "invoices",
+            invoices_dir,
             f"invoice_{order.uid}.pdf"
         )
 
+        # 🔥 AUTO GENERATE if missing
         if not os.path.exists(invoice_path):
-            raise Http404("Invoice not found")
+            invoice_path = generate_invoice_pdf(order)
 
         return FileResponse(
             open(invoice_path, "rb"),
             as_attachment=True,
             filename=f"invoice_{order.uid}.pdf"
         )
+
 
 
 
