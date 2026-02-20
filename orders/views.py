@@ -631,20 +631,100 @@ class PaymentCancelledAPIView(APIView):
 
 
 
+# import hmac
+# import hashlib
+# import json
+# from django.views.decorators.csrf import csrf_exempt
+# from django.utils.decorators import method_decorator
+# from rest_framework.permissions import AllowAny
+# from rest_framework.views import APIView
+# from rest_framework.response import Response
+# from django.conf import settings
+# from .models import Payment, Order
+# from django.db import transaction
+
+
+# @method_decorator(csrf_exempt, name='dispatch')
+# class RazorpayWebhookAPIView(APIView):
+#     permission_classes = [AllowAny]
+
+#     @transaction.atomic
+#     def post(self, request):
+
+#         webhook_secret = settings.RAZORPAY_WEBHOOK_SECRET
+#         received_signature = request.headers.get("X-Razorpay-Signature")
+
+#         body = request.body
+
+#         # 🔐 Verify signature
+#         generated_signature = hmac.new(
+#             webhook_secret.encode(),
+#             body,
+#             hashlib.sha256
+#         ).hexdigest()
+
+#         if not hmac.compare_digest(generated_signature, received_signature):
+#             return Response({"error": "Invalid signature"}, status=400)
+
+#         payload = json.loads(body)
+#         event = payload.get("event")
+
+#         # 🔥 Handle payment success
+#         if event == "payment.captured":
+
+#             razorpay_order_id = payload["payload"]["payment"]["entity"]["order_id"]
+#             razorpay_payment_id = payload["payload"]["payment"]["entity"]["id"]
+
+#             payment = Payment.objects.select_for_update().filter(
+#                 razorpay_order_id=razorpay_order_id
+#             ).first()
+
+#             if payment and payment.status != "PAID":
+
+#                 payment.status = "PAID"
+#                 payment.razorpay_payment_id = razorpay_payment_id
+#                 payment.save(update_fields=["status", "razorpay_payment_id"])
+
+#                 order = payment.order
+#                 order.status = "PAID"
+#                 order.save(update_fields=["status"])
+
+#         # 🔥 Handle payment failed
+#         elif event == "payment.failed":
+
+#             razorpay_order_id = payload["payload"]["payment"]["entity"]["order_id"]
+
+#             payment = Payment.objects.filter(
+#                 razorpay_order_id=razorpay_order_id
+#             ).first()
+
+#             if payment:
+#                 payment.status = "FAILED"
+#                 payment.save(update_fields=["status"])
+
+#         return Response({"message": "Webhook processed"})
+
+
+
+
 import hmac
 import hashlib
 import json
 from django.views.decorators.csrf import csrf_exempt
 from django.utils.decorators import method_decorator
-from rest_framework.permissions import AllowAny
-from rest_framework.views import APIView
-from rest_framework.response import Response
 from django.conf import settings
-from .models import Payment, Order
 from django.db import transaction
+from rest_framework.views import APIView
+from rest_framework.permissions import AllowAny
+from rest_framework.response import Response
+
+from django.db.models import F
+
+from .models import Payment, Order, OrderItem
+from .utils.invoice import generate_invoice_pdf
 
 
-@method_decorator(csrf_exempt, name='dispatch')
+@method_decorator(csrf_exempt, name="dispatch")
 class RazorpayWebhookAPIView(APIView):
     permission_classes = [AllowAny]
 
@@ -656,7 +736,7 @@ class RazorpayWebhookAPIView(APIView):
 
         body = request.body
 
-        # 🔐 Verify signature
+        # 🔐 Verify webhook signature
         generated_signature = hmac.new(
             webhook_secret.encode(),
             body,
@@ -669,37 +749,90 @@ class RazorpayWebhookAPIView(APIView):
         payload = json.loads(body)
         event = payload.get("event")
 
-        # 🔥 Handle payment success
+        # ===============================
+        # ✅ PAYMENT CAPTURED
+        # ===============================
         if event == "payment.captured":
 
-            razorpay_order_id = payload["payload"]["payment"]["entity"]["order_id"]
-            razorpay_payment_id = payload["payload"]["payment"]["entity"]["id"]
+            payment_data = payload["payload"]["payment"]["entity"]
+            razorpay_order_id = payment_data["order_id"]
+            razorpay_payment_id = payment_data["id"]
 
-            payment = Payment.objects.select_for_update().filter(
-                razorpay_order_id=razorpay_order_id
-            ).first()
+            payment = (
+                Payment.objects
+                .select_for_update()
+                .select_related("order")
+                .filter(razorpay_order_id=razorpay_order_id)
+                .first()
+            )
 
-            if payment and payment.status != "PAID":
+            if not payment:
+                return Response({"message": "Payment not found"}, status=200)
 
-                payment.status = "PAID"
-                payment.razorpay_payment_id = razorpay_payment_id
-                payment.save(update_fields=["status", "razorpay_payment_id"])
+            # 🛑 Idempotency Protection
+            if payment.status == "PAID":
+                return Response({"message": "Already processed"}, status=200)
 
-                order = payment.order
-                order.status = "PAID"
-                order.save(update_fields=["status"])
+            order = payment.order
 
-        # 🔥 Handle payment failed
+            # 🔒 Deduct stock safely
+            order_items = (
+                OrderItem.objects
+                .select_related("product")
+                .select_for_update()
+                .filter(order=order)
+            )
+
+            for item in order_items:
+                product = item.product
+
+                if product.stock < item.quantity:
+                    payment.status = "FAILED"
+                    payment.save(update_fields=["status"])
+                    return Response(
+                        {"error": f"{product.title} out of stock"},
+                        status=400
+                    )
+
+                product.stock = F("stock") - item.quantity
+                product.save(update_fields=["stock"])
+
+            # ✅ Update payment
+            payment.status = "PAID"
+            payment.razorpay_payment_id = razorpay_payment_id
+            payment.save(update_fields=["status", "razorpay_payment_id"])
+
+            # ✅ Update order
+            order.status = "PAID"
+            order.save(update_fields=["status"])
+
+            # ✅ Generate invoice (only once)
+            generate_invoice_pdf(order)
+
+            return Response({"message": "Payment captured processed"}, status=200)
+
+        # ===============================
+        # ❌ PAYMENT FAILED
+        # ===============================
         elif event == "payment.failed":
 
-            razorpay_order_id = payload["payload"]["payment"]["entity"]["order_id"]
+            payment_data = payload["payload"]["payment"]["entity"]
+            razorpay_order_id = payment_data["order_id"]
 
-            payment = Payment.objects.filter(
-                razorpay_order_id=razorpay_order_id
-            ).first()
+            payment = (
+                Payment.objects
+                .select_for_update()
+                .filter(razorpay_order_id=razorpay_order_id)
+                .first()
+            )
 
-            if payment:
+            if payment and payment.status != "PAID":
                 payment.status = "FAILED"
                 payment.save(update_fields=["status"])
 
-        return Response({"message": "Webhook processed"})
+                payment.order.status = "FAILED"
+                payment.order.save(update_fields=["status"])
+
+            return Response({"message": "Payment failed processed"}, status=200)
+
+        return Response({"message": "Event ignored"}, status=200)

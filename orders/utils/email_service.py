@@ -3,7 +3,7 @@ from django.conf import settings
 
 
 def send_order_confirmation_email(user_email, invoice_path, order_uid):
-    subject = "Order Confirmed – Saree Store"
+    subject = "Order Confirmed – LOREAL INDIA"
     body = f"""
 Hi,
 
@@ -14,7 +14,7 @@ Order ID: {order_uid}
 Please find the invoice attached.
 
 Thank you for shopping with us.
-Saree Store Team
+LOREAL INDIA Team
 """
 
     email = EmailMessage(
