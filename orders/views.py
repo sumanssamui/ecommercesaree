@@ -164,7 +164,7 @@ class CreateRazorpayOrderAPIView(APIView):
             )
 
         # ✅ Allow only payment pending orders
-        if order.status not in ["PENDING", "PAYMENT_PENDING"]:
+        if order.status != Order.Status.PAYMENT_PENDING:
             return Response(
                 {"error": "Order not eligible for payment"},
                 status=status.HTTP_400_BAD_REQUEST
@@ -361,7 +361,7 @@ class VerifyRazorpayPaymentAPIView(APIView):
 #             user=user,
 #             address=address,
 #             total_amount=0,
-#             status="PENDING"
+#             status=Order.Status.PAYMENT_PENDING
 #         )
 
 #         # 4️⃣ Create Order Items
@@ -474,7 +474,7 @@ class CheckoutAPIView(APIView):
             user=user,
             address=address,
             total_amount=0,
-            status="PENDING"
+            status=Order.Status.PAYMENT_PENDING
         )
 
         # 4️⃣ Validate stock + create items
